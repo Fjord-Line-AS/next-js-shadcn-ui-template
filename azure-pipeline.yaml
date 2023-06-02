@@ -7,9 +7,9 @@ trigger:
 
 variables:
   containerRegistry: "fjordlineacr.azurecr.io"
-  imageRepository: YOUR_IMAGE_REPOSITORY
+  imageRepository: YOUR_IMAGE_REPOSITORY # example -> my-app
   dockerfilePath: "$(Build.SourcesDirectory)/Dockerfile"
-  deploymentfile: YOUR_DEPLOYMENT_FILE # example -> yourAppName.deployment.yaml
+  deploymentfile: YOUR_DEPLOYMENT_FILE # example -> your-app-name.deployment.yaml
   namespace: YOUR_NAMESPACE
   k8sSrcDir: "k8s/lz-dev"
 
@@ -45,9 +45,7 @@ stages:
     jobs:
       - deployment: Deploy
         displayName: Deploy updated manifest to cluster repo
-        environment: avgangslogg-v2
-        # variables:
-        #   - group: onboard-portal
+        environment: YOUR_ENVIORNMENT #examples -> https://dev.azure.com/FjordLine365/external-dev/_environments
         pool:
           vmImage: ubuntu-latest
         strategy:
