@@ -1,0 +1,76 @@
+parameters:
+  - name: imageRepository
+    type: string
+  - name: k8sSrcDir
+    type: string
+  - name: namespace
+    type: string
+  - name: deploymentfile
+    type: string
+  - name: image_tag
+    type: string
+  - name: manifest
+    type: string
+
+steps:
+  - checkout: lzdev
+    persistCredentials: true
+    clean: true
+  - script: dir $(Build.SourcesDirectory)
+  - task: Bash@3
+    displayName: Debug info
+    inputs:
+      targetType: "inline"
+      script: |
+        echo "k8sSrcDir=$(k8sSrcDir)"
+        echo "imageRepository=${{parameters.imageRepository}}"
+        echo "deploymentfile=${{parameters.deploymentfile}}"
+        echo "manifest=${{parameters.manifest}}"
+        echo "image_tag=${{parameters.image_tag}}"
+        echo "namespace=${{parameters.manifest}}"
+
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      buildType: "current"
+      artifactName: ${{parameters.manifest}}
+      targetPath: "$(Pipeline.Workspace)/mfests"
+
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      buildType: "current"
+      artifactName: ${{parameters.image_tag}}
+      targetPath: "$(Pipeline.Workspace)/image_tags"
+
+  - task: Bash@3
+    name: "Read_Image_tags"
+    displayName: "Read Image Tags"
+    inputs:
+      targetType: "inline"
+      script: |
+        for file in $(Pipeline.Workspace)/image_tags/*; do echo "##vso[task.setvariable variable=${file##*/}]$(cat $file)"; done
+
+  - task: Bash@3
+    displayName: release tag in git
+    inputs:
+      targetType: "inline"
+      script: |
+        set -euxo pipefail  # fail on error
+        set -x
+        # env -0 | sort -z | tr '\0' '\n'
+        echo "Build Repository: $(Build.Repository.Name)"
+        echo "Source dir: $(Build.SourcesDirectory)"
+        echo "Docker_tag: $(DOCKER_TAG)"
+        echo "Image Repository: ${{parameters.imageRepository}}"
+        echo $(pwd)
+        git config --global user.email "azure-pipeline@fjordline.com"
+        git config --global user.name "Azure Pipeline"
+        cd  $(Build.SourcesDirectory)
+        git fetch --all
+        git checkout main
+        git pull origin main
+        cp -rv $(Pipeline.Workspace)/mfests/* manifests/$(namespace)
+        git add manifests/$(namespace)/${{parameters.deploymentfile}}
+        git commit -m "Pipeline $(title) - ${{parameters.imageRepository}} $(Build.BuildNumber) $(Build.SourceVersionMessage)"
+        git tag -a "$(title)_$(DOCKER_TAG)" -m "deployment $(title): ${{parameters.imageRepository}} $(Build.BuildNumber)"
+        git push origin main
+        git push origin main --tags

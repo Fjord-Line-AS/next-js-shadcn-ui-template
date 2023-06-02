@@ -1,0 +1,64 @@
+name: $(BuildDefinitionName)_$(SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  containerRegistry: "fjordlineacr.azurecr.io"
+  imageRepository: YOUR_IMAGE_REPOSITORY
+  dockerfilePath: "$(Build.SourcesDirectory)/Dockerfile"
+  deploymentfile: YOUR_DEPLOYMENT_FILE # example -> yourAppName.deployment.yaml
+  namespace: YOUR_NAMESPACE
+  k8sSrcDir: "k8s/lz-dev"
+
+resources:
+  repositories:
+    - repository: lzdev
+      type: git
+      name: infrastructure/lz-dev.k8s
+      ref: "refs/heads/main"
+
+stages:
+  - stage: Build
+    displayName: Build
+    variables:
+      - group: YOUR_VARIABLES_LIBRARY # examples -> https://dev.azure.com/FjordLine365/external-dev/_library?itemType=VariableGroups
+    jobs:
+      - job: Build
+        pool:
+          vmImage: "ubuntu-latest"
+        continueOnError: false
+        steps:
+          - template: pipeline/build.yaml
+            parameters:
+              imageRepository: "$(imageRepository)"
+              k8sSrcDir: "$(k8sSrcDir)"
+              dockerfilePath: "$(dockerfilePath)"
+              manifest: "manifests"
+              image_tag: "image_tag"
+
+  - stage: Deploy
+    displayName: Deploy to cluster
+    dependsOn: Build
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy updated manifest to cluster repo
+        environment: avgangslogg-v2
+        # variables:
+        #   - group: onboard-portal
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: pipeline/deployment.yaml
+                  parameters:
+                    imageRepository: "$(imageRepository)"
+                    k8sSrcDir: "$(k8sSrcDir)"
+                    namespace: "$(namespace)"
+                    deploymentfile: "$(deploymentfile)"
+                    manifest: "manifests"
+                    image_tag: "image_tag"

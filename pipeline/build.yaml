@@ -1,0 +1,86 @@
+parameters:
+  - name: imageRepository
+    type: string
+  - name: k8sSrcDir
+    type: string
+  - name: dockerfilePath
+    type: string
+  - name: image_tag
+    type: string
+  - name: manifest
+    type: string
+
+steps:
+  - task: Bash@3
+    displayName: Create docker tag
+    inputs:
+      targetType: "inline"
+      script: |
+        version=`date -u '+%Y%m%d_%H%MZ'`
+        echo "##vso[task.setvariable variable=DOCKER_TAG;]$version"
+        echo "##vso[task.setvariable variable=dockerImage;]fjordlineacr.azurecr.io/${{parameters.imageRepository}}:$version"
+        mkdir -p $(Pipeline.Workspace)/image_tags
+        echo "$version" > $(Pipeline.Workspace)/image_tags/DOCKER_TAG
+
+  - task: Bash@3
+    displayName: Debug info
+    inputs:
+      targetType: "inline"
+      script: |
+        echo "k8sSrcDir=$(k8sSrcDir)"
+        echo "imageRepository=${{parameters.imageRepository}}"
+        echo "dockerfilePath=${{parameters.dockerfilePath}}"
+        echo "manifest=${{parameters.manifest}}"
+        echo "image_tag=${{parameters.image_tag}}"
+        echo "DOCKER_TAG=$(DOCKER_TAG)"
+        echo "NEXT_PUBLIC_BASE_PATH=$(NEXT_PUBLIC_BASE_PATH)"
+        echo "NEXT_PUBLIC_BUILD_SHIP_CODE=$(NEXT_PUBLIC_BUILD_SHIP_CODE)"
+        echo "ASSET_PREFIX=$(ASSET_PREFIX)"
+
+  - task: Docker@2
+    displayName: "Building container: ${{parameters.imageRepository}}:$(DOCKER_TAG) "
+    inputs:
+      command: build
+      dockerFile: ${{parameters.dockerfilePath}}
+      buildContext: "."
+      containerRegistry: "FjordLineContainerRegistry"
+      repository: ${{parameters.imageRepository}}
+      arguments: |
+        --build-arg NPM_TOKEN=$(NPM_TOKEN)
+        --build-arg GRAPH_QL_API=$(GRAPH_QL_API)
+        --build-arg DEPARTURE_API=$(DEPARTURE_API)
+        --build-arg NEXT_PUBLIC_ASSET_PREFIX=$(NEXT_PUBLIC_ASSET_PREFIX)
+      tags: |
+        $(DOCKER_TAG)
+
+  - task: Docker@2
+    displayName: "Pushing container: $${{parameters.imageRepository}}:$(DOCKER_TAG)"
+    inputs:
+      command: push
+      dockerFile: ${{parameters.dockerfilePath}}
+      containerRegistry: "FjordLineContainerRegistry"
+      repository: ${{parameters.imageRepository}}
+      tags: |
+        $(DOCKER_TAG)
+
+  - task: replacetokens@4
+    displayName: "Replace tokens in $(Build.SourcesDirectory)/$(k8sSrcDir)"
+    inputs:
+      rootDirectory: "$(Build.SourcesDirectory)/$(k8sSrcDir)"
+      verbosity: "detailed"
+      tokenPrefix: "{#"
+      tokenSuffix: "#}"
+      targetFiles: |
+        *.yaml
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: "$(Build.SourcesDirectory)/$(k8sSrcDir)"
+      artifact: ${{parameters.manifest}}
+      publishLocation: "pipeline"
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: "$(Pipeline.Workspace)/image_tags"
+      artifact: ${{parameters.image_tag}}
+      publishLocation: "pipeline"

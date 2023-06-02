@@ -1,0 +1,10 @@
+; begin auth token
+//pkgs.dev.azure.com/FjordLine365/_packaging/FjordLineWebServicesFeed/npm/registry/:username=FjordLine365
+//pkgs.dev.azure.com/FjordLine365/_packaging/FjordLineWebServicesFeed/npm/registry/:_password=${NPM_TOKEN}
+//pkgs.dev.azure.com/FjordLine365/_packaging/FjordLineWebServicesFeed/npm/registry/:email=npm requires email to be set but doesn't use the value
+//pkgs.dev.azure.com/FjordLine365/_packaging/FjordLineWebServicesFeed/npm/:username=FjordLine365
+//pkgs.dev.azure.com/FjordLine365/_packaging/FjordLineWebServicesFeed/npm/:_password=${NPM_PASSWORD}
+//pkgs.dev.azure.com/FjordLine365/_packaging/FjordLineWebServicesFeed/npm/:email=npm requires email to be set but doesn't use the value
+; end auth tokendocker
+@fjordline:registry=https://pkgs.dev.azure.com/FjordLine365/_packaging/FjordLineWebServicesFeed/npm/registry/
+always-auth=true
