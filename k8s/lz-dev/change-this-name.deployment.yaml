@@ -1,0 +1,60 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: YOUR_APP_NAME
+  namespace: YOUR_NAMESPACE
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: YOUR_APP_NAME
+  template:
+    metadata:
+      labels:
+        app: YOUR_APP_NAME
+    spec:
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: fjordlineacr
+      containers:
+        - image: #{dockerImage}#
+          imagePullPolicy: IfNotPresent
+          name: YOUR_APP_NAME
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: 1200m
+            requests:
+              memory: 50Mi
+              cpu: 25m
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 3
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          env:
+            - name: NPM_TOKEN
+              valueFrom:
+                configMapKeyRef:
+                  key: NPM_TOKEN
+                  name: YOUR_CONFIGMAP_NAME
